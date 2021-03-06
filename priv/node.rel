@@ -1,0 +1,7 @@
+%% coding: utf-8
+{release,{"node","0.1.0"},
+         {erts,"11.1"},
+         [{kernel,"7.1"},
+          {stdlib,"3.13.2"},
+          {elixir,"1.11.3"},
+          {compiler,"7.6.3"}]}.
