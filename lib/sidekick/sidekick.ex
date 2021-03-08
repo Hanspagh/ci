@@ -4,9 +4,9 @@ defmodule Sidekick do
     :"#{name}@#{hostname}"
   end
 
-  def start(name \\ :docker, spec) do
+  def start(name \\ :docker) do
     parent_node = Node.self()
-    wait_for_sidekick(node_name(name), parent_node, spec)
+    wait_for_sidekick(node_name(name), parent_node)
   end
 
   def call(name \\ :docker, module, method, args) do
@@ -17,9 +17,9 @@ defmodule Sidekick do
     :rpc.cast(node_name(name), module, method, args)
   end
 
-  defp wait_for_sidekick(sidekick_node, parent_node, spec) do
+  defp wait_for_sidekick(sidekick_node, parent_node) do
     :net_kernel.monitor_nodes(true)
-    command = start_node_command(sidekick_node, parent_node, spec)
+    command = start_node_command(sidekick_node, parent_node)
     Port.open({:spawn, command}, [:stream])
 
     receive do
@@ -33,7 +33,7 @@ defmodule Sidekick do
     end
   end
 
-  defp start_node_command(sidekick_node, parent_node, spec) do
+  defp start_node_command(sidekick_node, parent_node) do
     {:ok, command} = :init.get_argument(:progname)
     paths = Enum.join(:code.get_path(), " , ")
 
