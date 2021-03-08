@@ -25,3 +25,6 @@ ci-*.tar
 
 # Temporary files for e.g. tests
 /tmp
+priv/node.script
+priv/node.rel
+priv/node.boot

@@ -47,17 +47,16 @@ defmodule Sidekick do
 
     paths_arg = "-pa #{paths}"
 
-    command_args = "-s Elixir.Sidekick start_sidekick #{parent_node} #{spec}"
+    command_args = "-s Elixir.Sidekick start_sidekick #{parent_node}"
 
     args = "#{base_args} #{boot_file_args} #{cookie_arg} #{paths_arg} #{command_args}"
 
     "#{command} #{args}"
   end
 
-  def start_sidekick([parent_node, spec]) do
-    Node.monitor(parent_node, true)
-    # TODO Here we can start any kind of process, we just require a start and clean_up method
-
-    Sidekick.Parent.start_link([parent_node, spec])
+  def start_sidekick([parent_node]) do
+    {:ok, pid} = Sidekick.Parent.start_link([parent_node, [{Ci.Docker, []}]])
+    IO.inspect("started #{inspect(pid)}")
+    {:ok, pid}
   end
 end
