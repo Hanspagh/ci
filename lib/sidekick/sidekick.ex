@@ -24,7 +24,16 @@ defmodule Sidekick do
 
     receive do
       {:nodeup, ^sidekick_node} ->
-        {:ok, sidekick_node}
+        :timer.sleep(500)
+
+        case call(:docker, Sidekick.Parent, :start_link, [[parent_node]]) do
+          {:ok, pid} ->
+            {:ok, sidekick_node, pid}
+
+          error ->
+            Node.spawn(sidekick_node, :init, :stop, [])
+            {:error, error}
+        end
     after
       5000 ->
         # Shutdown node if we never received a response
@@ -55,8 +64,14 @@ defmodule Sidekick do
   end
 
   def start_sidekick([parent_node]) do
-    {:ok, pid} = Sidekick.Parent.start_link([parent_node, [{Ci.Docker, []}]])
-    IO.inspect("started #{inspect(pid)}")
-    {:ok, pid}
+    {:ok, _pid} =
+      Parent.Supervisor.start_link(
+        [Parent.MetaRegistry],
+        name: __MODULE__
+      )
+
+    Node.connect(parent_node)
+
+    :ok
   end
 end

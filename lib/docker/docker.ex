@@ -1,5 +1,5 @@
 defmodule Ci.Docker do
-  use GenServer, restart: :transient, shutdown: 10_000
+  use Parent.GenServer
 
   def start_link([]) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)

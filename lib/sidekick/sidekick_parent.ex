@@ -1,26 +1,30 @@
 defmodule Sidekick.Parent do
-  use GenServer, restart: :transient, shutdown: 10_000
+  use Parent.GenServer, restart: :temporary
 
-  def start_link([parent_node, spec]) do
-    GenServer.start_link(__MODULE__, [parent_node, spec], name: __MODULE__)
+  def start_link([parent_node]) do
+    Parent.GenServer.start_link(__MODULE__, [parent_node], name: __MODULE__)
   end
 
-  def init([parent_node, spec]) do
+  @impl GenServer
+  def init([parent_node]) do
     Node.monitor(parent_node, true)
     IO.inspect("monitor node #{inspect(parent_node)}")
-    {:ok, pid} = Supervisor.start_link(spec, strategy: :one_for_one, name: Sidekick.Supervisor)
-    IO.inspect("supervisor up #{inspect(pid)}")
-    {:ok, nil}
+    {:ok, pid} = Parent.start_child(Parent.child_spec({Ci.Docker, []}))
+    IO.inspect("child up #{inspect(pid)}")
+    {:ok, pid}
   end
 
-  def handle_info({:nodedown, node}, _state) do
+  def handle_info({:nodedown, node}, pid) do
     IO.inspect("node down #{inspect(node)}")
-    Supervisor.stop(Sidekick.Supervisor)
-    {:stop, :normal}
+    Parent.shutdown_child(pid)
+    {:stop, :normal, pid}
   end
 
-  def terminate(_reason, _state) do
-    IO.inspect("terminate node down}")
+  def handle_info({:EXIT, _pid, _reason}, state), do: {:noreply, state}
+
+  @impl GenServer
+  def terminate(reason, state) do
+    IO.inspect("terminating now #{inspect(reason)} #{inspect(state)} ")
     :init.stop()
   end
 end
