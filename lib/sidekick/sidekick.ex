@@ -24,9 +24,10 @@ defmodule Sidekick do
 
     receive do
       {:nodeup, ^sidekick_node} ->
+        # wait for node to be really up
         :timer.sleep(500)
 
-        case call(:docker, Sidekick.Parent, :start_link, [[parent_node]]) do
+        case call(:docker, Sidekick, :start_parent, [parent_node]) do
           {:ok, pid} ->
             {:ok, sidekick_node, pid}
 
@@ -63,15 +64,12 @@ defmodule Sidekick do
     "#{command} #{args}"
   end
 
+  def start_parent(parent_node) do
+    Sidekick.GenServer.start_link([parent_node])
+  end
+
   def start_sidekick([parent_node]) do
-    {:ok, _pid} =
-      Parent.Supervisor.start_link(
-        [Parent.MetaRegistry],
-        name: __MODULE__
-      )
-
     Node.connect(parent_node)
-
     :ok
   end
 end
