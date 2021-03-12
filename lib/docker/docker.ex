@@ -1,22 +1,12 @@
 defmodule Ci.Docker do
-  use Parent.GenServer
+  use GenServer
   require Logger
 
   def start_link([]) do
     GenServer.start_link(__MODULE__, [], name: {:global, __MODULE__})
   end
 
-  @spec count(5) :: 15
-  def count(5) do
-    5 + 10
-  end
-
-  @spec count2() :: 15
-  def count2() do
-    count(5)
-  end
-
-  @impl GenServer
+  @impl true
   def init([]) do
     {:ok, %{}}
   end
@@ -29,7 +19,7 @@ defmodule Ci.Docker do
     GenServer.call({:global, __MODULE__}, :stop)
   end
 
-  @impl GenServer
+  @impl true
   def handle_call({:start, name}, {from, _ref}, state) do
     {id, _} = System.cmd("docker", ["run", "-dt", name])
     container_id = String.trim(id)
@@ -38,21 +28,21 @@ defmodule Ci.Docker do
     {:reply, :ok, state}
   end
 
-  @impl GenServer
+  @impl true
   def handle_call(:stop, {pid, _ref}, state) do
     {{container_id, monitor_ref}, state} = Map.pop(state, pid)
     cleanup(container_id, monitor_ref)
     {:reply, :ok, state}
   end
 
-  @impl GenServer
+  @impl true
   def handle_info({:down, pid}, state) do
     {{container_id, monitor_ref}, state} = Map.pop(state, pid)
     cleanup(container_id, monitor_ref)
     {:noreply, state}
   end
 
-  @impl GenServer
+  @impl true
   def terminate(_reason, state) do
     Logger.debug("Termination #{__MODULE__}")
 

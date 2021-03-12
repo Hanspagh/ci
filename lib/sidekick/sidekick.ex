@@ -1,11 +1,16 @@
 defmodule Sidekick do
   @spec start(atom) :: {:error, any} | {:ok, atom, pid}
-  def start(node_name \\ :docker, child_spec \\ [{Ci.Docker, []}]) do
+  def start(node_name \\ :docker, children \\ [{Ci.Docker, []}]) do
     parent_node = Node.self()
-    wait_for_sidekick(node_host_name(node_name), parent_node, child_spec)
+    node = node_host_name(node_name)
+
+    case Node.ping(node) do
+      :pang -> wait_for_sidekick(node, parent_node, children)
+      :pong -> {:error, "Sidekick node is already alive"}
+    end
   end
 
-  @spec call(atom, atom, atom, [any]) :: any
+  @spec call(atom, atom, atom, list) :: any
   def call(name \\ :docker, module, method, args) do
     :rpc.block_call(node_host_name(name), module, method, args)
   end
@@ -15,7 +20,7 @@ defmodule Sidekick do
     :rpc.cast(node_host_name(name), module, method, args)
   end
 
-  @spec start_sidekick([node, ...]) :: :ok
+  @spec start_sidekick([node]) :: :ok
   def start_sidekick([parent_node]) do
     Node.connect(parent_node)
     :ok
@@ -26,7 +31,7 @@ defmodule Sidekick do
     :"#{name}@#{hostname}"
   end
 
-  defp wait_for_sidekick(sidekick_node, parent_node, child_spec) do
+  defp wait_for_sidekick(sidekick_node, parent_node, children) do
     :net_kernel.monitor_nodes(true)
     command = start_node_command(sidekick_node, parent_node)
     Port.open({:spawn, command}, [:stream])
@@ -36,13 +41,14 @@ defmodule Sidekick do
         # wait for node to be really up
         :timer.sleep(500)
 
-        case call(:docker, Sidekick.Supervisor, :start_link, [[parent_node, child_spec]]) do
+        case call(:docker, Sidekick.Supervisor, :start_link, [[parent_node, children]]) do
           {:ok, pid} ->
             {:ok, sidekick_node, pid}
 
-          error ->
+          {:error, error} ->
             Node.spawn(sidekick_node, :init, :stop, [])
             {:error, error}
+
         end
     after
       5000 ->

@@ -2,15 +2,26 @@ defmodule Sidekick.Supervisor do
   use Parent.GenServer
   require Logger
 
-  def start_link(args) do
-    Parent.GenServer.start_link(__MODULE__, args, name: __MODULE__)
+  @spec start_link(any) :: :ignore | {:error, any} | {:ok, pid}
+  def start_link([parent_node, children]) do
+    Parent.GenServer.start_link(__MODULE__, [parent_node, children], name: __MODULE__)
   end
 
-  @impl GenServer
-  def init([parent_node, child_specs]) do
+  @impl true
+  @spec init(any) :: {:ok, nil}
+  def init([parent_node, children]) do
     Node.monitor(parent_node, true)
-    Enum.each(child_specs, fn spec -> Parent.start_child(Parent.child_spec(spec)) end)
-    {:ok, nil}
+
+    all_started =
+      Enum.map(children, fn spec -> Parent.start_child(spec) end)
+      |> Enum.all?(&({:ok, _pid} = &1))
+
+    if all_started do
+      {:ok, nil}
+    else
+      Parent.shutdown_all()
+      {:stop, {:shutdown, :could_not_start_all_children}}
+    end
   end
 
   @impl true
