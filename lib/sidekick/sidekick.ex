@@ -1,23 +1,32 @@
 defmodule Sidekick do
-  defp node_name(name) do
+  @spec start(atom) :: {:error, any} | {:ok, atom, pid}
+  def start(node_name \\ :docker, child_spec \\ [{Ci.Docker, []}]) do
+    parent_node = Node.self()
+    wait_for_sidekick(node_host_name(node_name), parent_node, child_spec)
+  end
+
+  @spec call(atom, atom, atom, [any]) :: any
+  def call(name \\ :docker, module, method, args) do
+    :rpc.block_call(node_host_name(name), module, method, args)
+  end
+
+  @spec cast(atom, atom, atom, list) :: true
+  def cast(name \\ :docker, module, method, args) do
+    :rpc.cast(node_host_name(name), module, method, args)
+  end
+
+  @spec start_sidekick([node, ...]) :: :ok
+  def start_sidekick([parent_node]) do
+    Node.connect(parent_node)
+    :ok
+  end
+
+  defp node_host_name(name) do
     hostname = Node.self() |> Atom.to_string() |> String.split("@") |> List.last()
     :"#{name}@#{hostname}"
   end
 
-  def start(name \\ :docker) do
-    parent_node = Node.self()
-    wait_for_sidekick(node_name(name), parent_node)
-  end
-
-  def call(name \\ :docker, module, method, args) do
-    :rpc.block_call(node_name(name), module, method, args)
-  end
-
-  def cast(name \\ :docker, module, method, args) do
-    :rpc.cast(node_name(name), module, method, args)
-  end
-
-  defp wait_for_sidekick(sidekick_node, parent_node) do
+  defp wait_for_sidekick(sidekick_node, parent_node, child_spec) do
     :net_kernel.monitor_nodes(true)
     command = start_node_command(sidekick_node, parent_node)
     Port.open({:spawn, command}, [:stream])
@@ -27,7 +36,7 @@ defmodule Sidekick do
         # wait for node to be really up
         :timer.sleep(500)
 
-        case call(:docker, Sidekick, :start_parent, [parent_node]) do
+        case call(:docker, Sidekick.Supervisor, :start_link, [[parent_node, child_spec]]) do
           {:ok, pid} ->
             {:ok, sidekick_node, pid}
 
@@ -62,14 +71,5 @@ defmodule Sidekick do
     args = "#{base_args} #{boot_file_args} #{cookie_arg} #{paths_arg} #{command_args}"
 
     "#{command} #{args}"
-  end
-
-  def start_parent(parent_node) do
-    Sidekick.GenServer.start_link([parent_node])
-  end
-
-  def start_sidekick([parent_node]) do
-    Node.connect(parent_node)
-    :ok
   end
 end

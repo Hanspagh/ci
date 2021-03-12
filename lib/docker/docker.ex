@@ -6,6 +6,16 @@ defmodule Ci.Docker do
     GenServer.start_link(__MODULE__, [], name: {:global, __MODULE__})
   end
 
+  @spec count(5) :: 15
+  def count(5) do
+    5 + 10
+  end
+
+  @spec count2() :: 15
+  def count2() do
+    count(5)
+  end
+
   @impl GenServer
   def init([]) do
     {:ok, %{}}
