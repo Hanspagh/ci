@@ -1,5 +1,6 @@
 defmodule Sidekick.GenServer do
   use GenServer, restart: :transient, type: :supervisor
+  require Logger
 
   def start_link([parent_node]) do
     GenServer.start_link(__MODULE__, [parent_node], name: __MODULE__)
@@ -19,16 +20,16 @@ defmodule Sidekick.GenServer do
   end
 
   @impl GenServer
-  def handle_info({:nodedown, node}, pid) do
-    IO.inspect("node down #{inspect(node)}")
-    GenServer.stop(pid)
-    :timer.sleep(1000)
-    {:stop, :normal, nil}
+  def handle_info({:nodedown, _node}, state) do
+    Logger.debug("#{__MODULE__} Monitor node went down")
+    {:stop, :normal, state}
   end
 
   @impl GenServer
-  def terminate(reason, state) do
-    # IO.inspect("terminating now")
+  def terminate(_reason, pid) do
+    Logger.debug("Termination #{__MODULE__}")
+    GenServer.stop(pid, :normal)
     :init.stop()
+    pid
   end
 end
