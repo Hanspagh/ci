@@ -1,12 +1,12 @@
 defmodule Sidekick do
-  @spec start(atom) :: {:error, any} | {:ok, atom, pid}
+  @spec start(atom, [{atom, any}]) :: {:error, any} | {:ok, atom, pid}
   def start(node_name \\ :docker, children \\ [{Ci.Docker, []}]) do
     parent_node = Node.self()
     node = node_host_name(node_name)
 
     case Node.ping(node) do
       :pang -> wait_for_sidekick(node, parent_node, children)
-      :pong -> {:error, "Sidekick node is already alive"}
+      :pong -> {:error, "Sidekick node #{node} is already alive"}
     end
   end
 
@@ -38,7 +38,8 @@ defmodule Sidekick do
 
     receive do
       {:nodeup, ^sidekick_node} ->
-        # wait for node to be really up
+        # wait for node to really be up
+        # TODO deal with this in a better way
         :timer.sleep(500)
 
         case call(:docker, Sidekick.Supervisor, :start_link, [[parent_node, children]]) do
@@ -48,7 +49,6 @@ defmodule Sidekick do
           {:error, error} ->
             Node.spawn(sidekick_node, :init, :stop, [])
             {:error, error}
-
         end
     after
       5000 ->
